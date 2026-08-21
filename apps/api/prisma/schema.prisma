@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Work {
+  id          String    @id @default(cuid())
+  title       String
+  author      String?
+  description String?
+  language    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  editions    Edition[]
+  sources     Source[]
+
+  @@index([title])
+}
+
+model Edition {
+  id          String    @id @default(cuid())
+  workId      String
+  name        String
+  language    String?
+  translator  String?
+  publisher   String?
+  year        Int?
+  isbn        String?
+  createdAt   DateTime  @default(now())
+
+  work        Work      @relation(fields: [workId], references: [id], onDelete: Cascade)
+  passages    Passage[]
+
+  @@index([workId])
+}
+
+model Passage {
+  id              String    @id @default(cuid())
+  editionId       String
+  reference       String
+  originalText    String?
+  translatedText  String?
+  context         String?
+  verificationStatus VerificationStatus @default(PENDING)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  edition         Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
+
+  @@index([editionId])
+  @@index([reference])
+}
+
+model Source {
+  id          String   @id @default(cuid())
+  workId      String
+  title       String
+  type        SourceType
+  url         String?
+  publisher   String?
+  accessedAt  DateTime?
+  description String?
+  createdAt   DateTime @default(now())
+
+  work        Work      @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  @@index([workId])
+}
+
+enum VerificationStatus {
+  PENDING
+  REVIEWED
+  VERIFIED
+  DISPUTED
+}
+
+enum SourceType {
+  PRIMARY
+  SCHOLARLY
+  SECONDARY
+  ARCHIVAL
+  OTHER
+}
