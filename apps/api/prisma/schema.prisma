@@ -16,6 +16,7 @@ model Work {
   updatedAt   DateTime  @updatedAt
 
   editions    Edition[]
+  translations Translation[]
   sources     Source[]
 
   @@index([title])
@@ -34,6 +35,7 @@ model Edition {
 
   work        Work      @relation(fields: [workId], references: [id], onDelete: Cascade)
   passages    Passage[]
+  translations Translation[]
 
   @@index([workId])
 }
@@ -53,6 +55,7 @@ model Passage {
 
   @@index([editionId])
   @@index([reference])
+  translationPassages TranslationPassage[]
 }
 
 model Source {
@@ -84,4 +87,38 @@ enum SourceType {
   SECONDARY
   ARCHIVAL
   OTHER
+}
+
+model Translation {
+  id               String   @id @default(cuid())
+  workId           String
+  editionId        String
+  translator       String?
+  language         String?
+  publicationYear  Int?
+  publisher        String?
+  rights           String?
+  sourceIdentifier String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  work    Work    @relation(fields: [workId], references: [id], onDelete: Cascade)
+  edition Edition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  passages TranslationPassage[]
+}
+
+model TranslationPassage {
+  id               String   @id @default(cuid())
+  translationId    String
+  sourcePassageId  String
+  text             String
+  language         String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  translation Translation @relation(fields: [translationId], references: [id], onDelete: Cascade)
+  sourcePassage Passage @relation(fields: [sourcePassageId], references: [id], onDelete: Cascade)
+
+  @@unique([translationId, sourcePassageId])
 }
