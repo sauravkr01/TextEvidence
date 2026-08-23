@@ -113,6 +113,54 @@ app.post("/api/editions", async (req, res) => {
   }
 });
 
+// Passage routes
+app.get("/api/passages", async (req, res) => {
+  try {
+    const passages = await prisma.passage.findMany();
+    res.json(passages);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.get("/api/passages/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const passage = await prisma.passage.findUnique({ where: { id } });
+    if (!passage) {
+      return res.status(404).json({ error: "Passage not found" });
+    }
+    res.json(passage);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.post("/api/passages", async (req, res) => {
+  const { editionId, reference, originalText, translatedText, context, verificationStatus } = req.body;
+  if (!editionId || typeof editionId !== "string") {
+    return res.status(400).json({ error: "'editionId' is required and must be a string" });
+  }
+  if (!reference || typeof reference !== "string") {
+    return res.status(400).json({ error: "'reference' is required and must be a string" });
+  }
+  try {
+    const edition = await prisma.edition.findUnique({ where: { id: editionId } });
+    if (!edition) {
+      return res.status(400).json({ error: "Referenced Edition does not exist" });
+    }
+    const newPassage = await prisma.passage.create({
+      data: { editionId, reference, originalText, translatedText, context, verificationStatus },
+    });
+    res.status(201).json(newPassage);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 
 if (process.env.NODE_ENV !== 'test') {
