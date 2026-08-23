@@ -161,6 +161,71 @@ app.post("/api/passages", async (req, res) => {
   }
 });
 
+// Translation routes
+app.get("/api/translations", async (req, res) => {
+  try {
+    const translations = await prisma.translation.findMany();
+    res.json(translations);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.get("/api/translations/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const translation = await prisma.translation.findUnique({ where: { id } });
+    if (!translation) {
+      return res.status(404).json({ error: "Translation not found" });
+    }
+    res.json(translation);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.post("/api/translations", async (req, res) => {
+  const { workId, editionId, translator, language, publicationYear, publisher, rights, sourceIdentifier, notes } = req.body;
+  if (!workId || typeof workId !== "string") {
+    return res.status(400).json({ error: "'workId' is required and must be a string" });
+  }
+  if (!editionId || typeof editionId !== "string") {
+    return res.status(400).json({ error: "'editionId' is required and must be a string" });
+  }
+  try {
+    const work = await prisma.work.findUnique({ where: { id: workId } });
+    if (!work) {
+      return res.status(400).json({ error: "Referenced Work does not exist" });
+    }
+    const edition = await prisma.edition.findUnique({ where: { id: editionId } });
+    if (!edition) {
+      return res.status(400).json({ error: "Referenced Edition does not exist" });
+    }
+    if (edition.workId !== workId) {
+      return res.status(400).json({ error: "Edition does not belong to the specified Work" });
+    }
+    const newTranslation = await prisma.translation.create({
+      data: {
+        workId,
+        editionId,
+        translator,
+        language,
+        publicationYear,
+        publisher,
+        rights,
+        sourceIdentifier,
+        notes,
+      },
+    });
+    res.status(201).json(newTranslation);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 
 if (process.env.NODE_ENV !== 'test') {
