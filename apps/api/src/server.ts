@@ -204,20 +204,10 @@ app.post("/api/translations", async (req, res) => {
       return res.status(400).json({ error: "Referenced Edition does not exist" });
     }
     if (edition.workId !== workId) {
-      return res.status(400).json({ error: "Edition does not belong to the specified Work" });
+      return res.status(400).json({ error: "Edition does not belong to the referenced Work" });
     }
     const newTranslation = await prisma.translation.create({
-      data: {
-        workId,
-        editionId,
-        translator,
-        language,
-        publicationYear,
-        publisher,
-        rights,
-        sourceIdentifier,
-        notes,
-      },
+      data: { workId, editionId, translator, language, publicationYear, publisher, rights, sourceIdentifier, notes },
     });
     res.status(201).json(newTranslation);
   } catch (error) {
@@ -226,10 +216,76 @@ app.post("/api/translations", async (req, res) => {
   }
 });
 
+// TranslationPassage routes
+app.get("/api/translation-passages", async (req, res) => {
+  try {
+    const tps = await prisma.translationPassage.findMany();
+    res.json(tps);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.get("/api/translation-passages/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const tp = await prisma.translationPassage.findUnique({ where: { id } });
+    if (!tp) {
+      return res.status(404).json({ error: "TranslationPassage not found" });
+    }
+    res.json(tp);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.post("/api/translation-passages", async (req, res) => {
+  const { translationId, sourcePassageId, text, language } = req.body;
+  if (!translationId || typeof translationId !== "string") {
+    return res.status(400).json({ error: "'translationId' is required and must be a string" });
+  }
+  if (!sourcePassageId || typeof sourcePassageId !== "string") {
+    return res.status(400).json({ error: "'sourcePassageId' is required and must be a string" });
+  }
+  if (!text || typeof text !== "string") {
+    return res.status(400).json({ error: "'text' is required and must be a string" });
+  }
+  if (!language || typeof language !== "string") {
+    return res.status(400).json({ error: "'language' is required and must be a string" });
+  }
+  try {
+    const translation = await prisma.translation.findUnique({ where: { id: translationId } });
+    if (!translation) {
+      return res.status(400).json({ error: "Referenced Translation does not exist" });
+    }
+    const passage = await prisma.passage.findUnique({ where: { id: sourcePassageId } });
+    if (!passage) {
+      return res.status(400).json({ error: "Referenced Passage does not exist" });
+    }
+    const edition = await prisma.edition.findUnique({ where: { id: passage.editionId } });
+    if (edition && edition.workId !== translation.workId) {
+      return res.status(400).json({ error: "Passage does not belong to the same Work as the Translation" });
+    }
+    const existing = await prisma.translationPassage.findFirst({ where: { translationId, sourcePassageId } });
+    if (existing) {
+      return res.status(400).json({ error: "Duplicate translationId and sourcePassageId" });
+    }
+    const newTP = await prisma.translationPassage.create({ data: { translationId, sourcePassageId, text, language } });
+    res.status(201).json(newTP);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
+
 const PORT = process.env.PORT || 5000;
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`TextEvidence API running on port ${PORT}`);
   });
-}
+}
